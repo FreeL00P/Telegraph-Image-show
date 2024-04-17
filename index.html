@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>图片展示</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        margin: 0;
+        padding: 0;
+        background-color: #f4f4f4;
+      }
+
+      #gallery {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+        align-items: center;
+        padding: 20px;
+      }
+
+      .image {
+        margin: 10px;
+        width: calc(33.33% - 20px);
+        max-width: 300px;
+        border-radius: 5px;
+        overflow: hidden;
+        box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        cursor: pointer;
+      }
+
+      .image img {
+        width: 100%;
+        height: auto;
+      }
+
+      #loading {
+        text-align: center;
+        padding: 20px;
+        font-size: 18px;
+      }
+
+      #overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0, 0, 0, 0.7); /* 半透明背景 */
+        display: none;
+        justify-content: center;
+        align-items: center;
+        z-index: 1000;
+      }
+
+      #overlay img {
+        max-width: 90%;
+        max-height: 90%;
+        border-radius: 5px;
+        cursor: pointer; /* 鼠标指针显示为指示放大 */
+      }
+
+      #prevButton,
+      #nextButton {
+        position: fixed;
+        top: 50%;
+        transform: translateY(-50%);
+        width: 50px;
+        height: 50px;
+        background-color: rgba(0, 0, 0, 0.5);
+        color: white;
+        border: none;
+        border-radius: 50%;
+        cursor: pointer;
+        font-size: 24px;
+        line-height: 50px;
+        text-align: center;
+        z-index: 1000;
+        display: none; /* 初始隐藏按钮 */
+      }
+
+      #prevButton {
+        left: 10px;
+      }
+
+      #nextButton {
+        right: 10px;
+      }
+
+      #pagination {
+        position: fixed;
+        bottom: 20px;
+        width: 100%;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+      }
+
+      #prevPage,
+      #nextPage {
+        padding: 10px;
+        margin: 0 10px;
+        background-color: rgba(0, 0, 0, 0.5);
+        color: white;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+        display: block;
+      }
+      #linkInput {
+        margin: 20px auto;
+        text-align: center;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+      }
+
+      #imageLinks {
+        padding: 10px;
+        border: 1px solid #ccc;
+        border-radius: 5px;
+        max-width: 80%;
+        box-sizing: border-box;
+      }
+
+      #confirmButton {
+        margin-top: 10px;
+        padding: 10px 20px;
+        background-color: #007bff;
+        color: white;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+        transition: background-color 0.3s;
+      }
+
+      #confirmButton:hover {
+        background-color: #0056b3;
+      }
+      textarea {
+        width: 100%;
+        height: 200px;
+        padding: 10px;
+        box-sizing: border-box;
+        border: 1px solid #ccc;
+        border-radius: 5px;
+        resize: none;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="linkInput">
+      <textarea
+        id="imageLinks"
+        placeholder="输入图片链接，每行一个，理论无上限，由你决定，鼠标下滑即可加载新图片，每次加载30张。 By FreeL00P"></textarea>
+      <button id="confirmButton" onclick="showCustomImages()">确认</button>
+    </div>
+
+    <div id="gallery"></div>
+    <div id="overlay">
+      <button id="prevButton" onclick="showPreviousImage()">&lt;</button>
+      <img id="overlayImage" onclick="closeOverlay()" />
+      <button id="nextButton" onclick="showNextImage()">&gt;</button>
+    </div>
+
+    <script>
+      var gallery = document.getElementById("gallery");
+      var overlay = document.getElementById("overlay");
+      var loading = document.getElementById("loading");
+      var overlayImage = document.getElementById("overlayImage");
+      var images = [];
+      var currentIndex = 0;
+      var loadedImages = 0; // 已加载的图片数量
+      var imagesPerPage = 30; // 每次加载的图片数量
+
+      function showCustomImages() {
+        var customLinks = document.getElementById("imageLinks").value.trim();
+        if (customLinks !== "") {
+          var linksArray = customLinks.split("\n"); // 使用换行符分隔链接
+          gallery.innerHTML = ""; // 清空原有的图片
+          linksArray.forEach(function (link) {
+            if (link.trim() !== "") {
+              // 忽略空链接
+              var imageContainer = document.createElement("div");
+              imageContainer.className = "image";
+              var image = document.createElement("img");
+              image.src = link.trim();
+              imageContainer.appendChild(image);
+              gallery.appendChild(imageContainer); // 添加新的图片
+            }
+          });
+        } else {
+          alert("请输入有效的图片链接！");
+        }
+      }
+
+      // 在 displayImages 函数中为每个图像添加点击事件监听器
+      function displayImages() {
+        var end = Math.min(loadedImages + imagesPerPage, images.length);
+        for (var i = loadedImages; i < end; i++) {
+          var imageContainer = document.createElement("div");
+          imageContainer.className = "image";
+          var image = document.createElement("img");
+          image.src = images[i];
+          imageContainer.appendChild(image);
+          gallery.appendChild(imageContainer);
+        }
+        loadedImages = end;
+        loading.style.display = "none";
+      }
+      // 添加点击事件监听器
+      gallery.addEventListener("click", function (event) {
+        if (event.target.tagName === "IMG") {
+          var index = Array.from(gallery.children).indexOf(
+            event.target.parentElement
+          );
+          showImage(index);
+        }
+      });
+      // 显示被点击的图像在覆盖层中放大显示
+      function showImage(index) {
+        currentIndex = index;
+        overlayImage.src = images[currentIndex];
+        overlay.style.display = "flex"; // 显示覆盖层
+        updateNavigationButtons();
+      }
+
+      // 关闭覆盖层
+      function closeOverlay() {
+        overlay.style.display = "none";
+      }
+
+      // 显示上一张图像
+      function showPreviousImage() {
+        currentIndex = (currentIndex - 1 + images.length) % images.length;
+        overlayImage.src = images[currentIndex];
+        updateNavigationButtons();
+      }
+
+      // 显示下一张图像
+      function showNextImage() {
+        currentIndex = (currentIndex + 1) % images.length;
+
+        overlayImage.src = images[currentIndex];
+        updateNavigationButtons();
+      }
+
+      // 更新导航按钮的显示状态
+      function updateNavigationButtons() {
+        if (currentIndex === 0) {
+          prevButton.style.display = "none";
+        } else {
+          prevButton.style.display = "block";
+        }
+        if (currentIndex === images.length - 1) {
+          nextButton.style.display = "none";
+        } else {
+          nextButton.style.display = "block";
+        }
+      }
+
+      // 监听点击事件
+      overlay.addEventListener("click", function (event) {
+        if (event.target === overlay) {
+          closeOverlay();
+        }
+      });
+
+      // 添加事件监听器，点击左右按钮显示上一张或下一张图片
+      prevButton.addEventListener("click", showPreviousImage);
+      nextButton.addEventListener("click", showNextImage);
+
+      // 添加滚动加载事件
+      window.addEventListener("scroll", function () {
+        // 获取文档的整体高度
+        var documentHeight = Math.max(
+          document.body.scrollHeight,
+          document.documentElement.scrollHeight,
+          document.body.offsetHeight,
+          document.documentElement.offsetHeight,
+          document.body.clientHeight,
+          document.documentElement.clientHeight
+        );
+
+        // 计算用户滚动的距离
+        var scrollPosition = window.innerHeight + window.pageYOffset;
+
+        // 如果滚动到页面底部，加载新的图片链接
+        if (scrollPosition >= documentHeight - 100) {
+          fetchImages();
+        }
+      });
+    </script>
+  </body>
+</html>
